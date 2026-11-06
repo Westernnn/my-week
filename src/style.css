@@ -22,6 +22,7 @@ input[type=range]{accent-color:var(--accent)}
 .col{position:relative;border-left:.5px solid var(--border)}
 .blk{position:absolute;left:2px;right:2px;border-radius:4px;font-size:11px;line-height:1.25;padding:2px 4px;overflow:hidden;cursor:pointer}
 .blk:hover{outline:1px solid var(--strong)}
+.blk.short{padding-top:0;padding-bottom:0;white-space:nowrap;text-overflow:ellipsis}
 .seg{position:absolute;top:0;bottom:0;cursor:pointer;border-right:1px solid var(--card)}
 .two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -88,6 +89,9 @@ button.primary:hover{background:var(--accent);filter:brightness(1.1)}
 .fmt{margin-top:16px}
 .fmt summary{cursor:pointer;color:var(--muted);font-size:14px}
 .fmt pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--soft);border-radius:8px;padding:10px;max-height:420px;overflow:auto;user-select:text;-webkit-user-select:text}
+
+/* iPhone home-screen app: cover the status-bar area so content doesn't scroll underneath the clock */
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:2500;pointer-events:none}
 
 /* Touch */
 html{-webkit-text-size-adjust:100%}

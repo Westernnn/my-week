@@ -88,7 +88,7 @@ function buildGrid() {
   const g = $('grid'), H0 = 7, H1 = 24;
   const list = weekSel === 'all' ? DK : [weekSel];
   const single = list.length === 1;
-  const PX = single ? 46 : 30;
+  const PX = single ? 64 : 30; // pixels per hour; the single-day view is tall enough for 15-minute blocks
   g.innerHTML = '';
   g.style.gridTemplateColumns = single ? '40px minmax(0,1fr)' : '34px repeat(7,minmax(0,1fr))';
 
@@ -121,13 +121,21 @@ function buildGrid() {
     for (const b of D[d]) {
       const a = m(b[0]), n = m(b[1]) - a, k = cat(b[2]), el = document.createElement('div');
       el.className = 'blk';
+      const h = (n / 60) * PX - 2;
       el.style.top = ((a - H0 * 60) / 60) * PX + 1 + 'px';
-      el.style.height = (n / 60) * PX - 2 + 'px';
+      el.style.height = h + 'px';
       el.style.background = k.bg; el.style.color = k.fg;
       el.style.fontSize = single ? '13px' : '11px';
       if (b[2] === 't') el.style.border = '.5px dashed var(--strong)';
-      if (single) { if (n >= 20) el.textContent = `${b[0]}–${b[1]}  ${b[3]}`; }
+      // Short blocks: one line, vertically centred, cut with "…" instead of spilling into the next block
+      if (h < 30) {
+        el.classList.add('short');
+        el.style.fontSize = single ? '12px' : '10px';
+        el.style.lineHeight = Math.max(h - 1, 0) + 'px';
+      }
+      if (single) { if (h >= 12) el.textContent = `${b[0]}–${b[1]}  ${b[3]}`; }
       else if (n >= 40) el.textContent = b[3].split(' (')[0];
+      el.title = `${b[0]}–${b[1]} ${b[3]}`;
       el.onclick = () => showDetail(d, b, a);
       col.appendChild(el);
     }
