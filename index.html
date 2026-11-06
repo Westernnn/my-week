@@ -18,12 +18,41 @@
 <main>
 <header>
   <h1>My week</h1>
-  <p class="sub" id="sub">Sample schedule</p>
+  <p class="sub" id="sub">Your schedule, saved on this device</p>
   <nav class="tabs" aria-label="Views">
     <button class="tab on" data-tab="now">Now</button>
     <button class="tab" data-tab="week">Week</button>
   </nav>
 </header>
+
+<!-- WELCOME: shown while no schedule is saved on this device -->
+<section id="welcome">
+  <div class="card">
+    <h2>Add your schedule</h2>
+    <p class="k">This app starts empty. Paste your week in the format below and it builds your Now screen, map and week view. Everything stays on this device.</p>
+    <ol class="steps">
+      <li><b>Put your week into the format.</b> Easiest: copy the AI prompt, paste it into an AI assistant (ChatGPT, Claude...), and describe your week under "MY SCHEDULE". Or fill in the template yourself.
+        <div class="row">
+          <button id="copyPrompt">Copy AI prompt</button>
+          <button id="useTemplate">Fill in template</button>
+        </div>
+        <p id="copyMsg" class="k"></p>
+      </li>
+      <li><b>Paste the text below</b> (or edit it there), then tap Add.</li>
+    </ol>
+    <textarea id="wText" rows="12" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder='{ "places": { ... }, "days": { ... } }'></textarea>
+    <p id="wErr" class="err" role="alert"></p>
+    <div class="row">
+      <button id="wAdd" class="primary">Add my schedule</button>
+      <button id="wFile">Import a file</button>
+      <input type="file" id="wFileInput" accept="application/json,.json,.txt" hidden>
+    </div>
+    <details class="fmt">
+      <summary>Format details</summary>
+      <pre id="fmtText"></pre>
+    </details>
+  </div>
+</section>
 
 <!-- NOW -->
 <section id="view-now">
@@ -74,7 +103,7 @@
     <button id="addBlock">+ Add block</button>
     <button id="exportBtn">Export</button>
     <button id="importBtn">Import file</button>
-    <button id="pasteBtn">Paste text</button>
+    <button id="pasteBtn">Edit as text</button>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
     <button id="resetBtn">Reset</button>
   </div>
@@ -83,15 +112,15 @@
 
 <dialog id="pasteDlg">
   <form id="pasteForm">
-    <h3>Paste your schedule</h3>
-    <label>Paste the text of your schedule file
+    <h3>Edit your schedule as text</h3>
+    <label>Change the text, or replace it all by pasting new text
       <textarea id="pasteText" rows="8" required spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
     </label>
     <p id="pasteErr" class="err" role="alert"></p>
     <div class="btns">
       <span class="sp"></span>
       <button type="button" id="pasteCancel">Cancel</button>
-      <button type="submit" class="primary">Import</button>
+      <button type="submit" class="primary">Save</button>
     </div>
   </form>
 </dialog>

@@ -72,6 +72,23 @@ button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 button.primary:hover{background:var(--accent);filter:brightness(1.1)}
 @media (prefers-color-scheme:dark){button.primary{color:#0b2a4a}}
 
+/* Welcome / empty start */
+#welcome{display:none}
+.empty #welcome{display:block}
+.empty .tabs,.empty #view-now,.empty #view-week{display:none!important}
+#welcome h2{margin:0 0 6px}
+#welcome .steps{padding-left:20px;margin:14px 0}
+#welcome .steps li{margin-bottom:12px;font-size:14px}
+#welcome .steps .row{margin-top:8px}
+#welcome textarea{display:block;width:100%;font:13px/1.45 ui-monospace,Consolas,monospace;color:var(--text);background:var(--bg);border:.5px solid var(--strong);border-radius:8px;padding:10px;resize:vertical}
+#welcome .row{display:flex;flex-wrap:wrap;gap:8px}
+#wErr{color:#c0392b;font-size:13px;margin:8px 0;word-break:break-word}
+#wErr:empty{display:none}
+#welcome > .card > .row{margin-top:10px}
+.fmt{margin-top:16px}
+.fmt summary{cursor:pointer;color:var(--muted);font-size:14px}
+.fmt pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--soft);border-radius:8px;padding:10px;max-height:420px;overflow:auto;user-select:text;-webkit-user-select:text}
+
 /* Touch */
 html{-webkit-text-size-adjust:100%}
 button,.blk,.seg,summary{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
