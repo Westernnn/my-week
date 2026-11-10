@@ -28,14 +28,23 @@ let timer: number | null = null;
 const tashkentNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: settings.timezone }));
 const dayOf = (n: Date) => DK[(n.getDay() + 6) % 7];
 // On a phone the week grid is too narrow for 7 columns, so start on today's single-day view
-let weekSel: DayKey | 'all' = matchMedia('(max-width: 620px)').matches ? dayOf(tashkentNow()) : 'all';
+const isPhone = () => matchMedia('(max-width: 620px)').matches;
+let weekSel: DayKey | 'all' = isPhone() ? dayOf(tashkentNow()) : 'all';
+let cardIdx = 0;          // which carousel card is in view: 0 = the current block
+let cardsKey = '';        // what the upcoming cards were built for; rebuilt when the current block changes
 
 // ---------- Tabs ----------
-function setTab(name: 'now' | 'week') {
+// Switching tabs always lands on the current time: Now snaps back to the current block, Week scrolls to "now".
+function setTab(name: 'now' | 'week', toNow = true) {
   document.querySelectorAll<HTMLElement>('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
   $('view-now').hidden = name !== 'now';
   $('view-week').hidden = name !== 'week';
-  if (name === 'now') setTimeout(() => map.invalidateSize(), 0);
+  if (name === 'now') {
+    if (toNow) snapToNow();
+    setTimeout(() => map.invalidateSize(), 0);
+  } else if (toNow) {
+    weekToNow();
+  }
 }
 document.querySelectorAll<HTMLElement>('.tab').forEach(b => { b.onclick = () => setTab(b.dataset.tab as 'now' | 'week'); });
 
@@ -63,7 +72,7 @@ function showDetail(d: DayKey, b: Block, a: number) {
   p.textContent = `${d} ${b[0]}–${b[1]} · ${cat(b[2]).name} · ${b[3]}`;
   const btn = document.createElement('button');
   btn.textContent = 'See on Now screen';
-  btn.onclick = () => { day = d; T = a; live = false; setTab('now'); render(); };
+  btn.onclick = () => { day = d; T = a; live = false; setTab('now', false); showCard(0); render(); };
   const ed = document.createElement('button');
   ed.textContent = 'Edit';
   ed.onclick = () => openEditor(d, b);
@@ -109,9 +118,11 @@ function buildGrid() {
   }
   g.appendChild(tc);
 
+  gridPX = PX;
   for (const d of list) {
     const col = document.createElement('div');
     col.className = 'col';
+    col.dataset.day = d;
     col.style.height = (H1 - H0) * PX + 'px';
     for (let h = H0; h < H1; h++) {
       const ln = document.createElement('div');
@@ -141,6 +152,33 @@ function buildGrid() {
     }
     g.appendChild(col);
   }
+  placeNowLine();
+}
+
+/** Red line across today's column at the current time (moved every 30 s by the clock tick). */
+let gridPX = 30;
+function placeNowLine(): HTMLElement | null {
+  document.querySelectorAll('.nowline').forEach(n => n.remove());
+  const n = tashkentNow(), mins = n.getHours() * 60 + n.getMinutes();
+  const col = document.querySelector<HTMLElement>(`#grid .col[data-day="${dayOf(n)}"]`);
+  if (!col || mins < 7 * 60) return null;
+  const line = document.createElement('div');
+  line.className = 'nowline';
+  line.style.top = ((mins - 7 * 60) / 60) * gridPX + 'px';
+  col.appendChild(line);
+  return line;
+}
+
+/** Week tab opens on the current time: today's day on a phone, scrolled so "now" is in view. */
+function weekToNow() {
+  if (isPhone()) weekSel = dayOf(tashkentNow());
+  buildWeekBar();
+  buildGrid();
+  requestAnimationFrame(() => {
+    const line = document.querySelector<HTMLElement>('.nowline');
+    if (line) line.scrollIntoView({ block: 'center' });
+    else window.scrollTo(0, 0);
+  });
 }
 buildWeekBar();
 buildGrid();
@@ -196,6 +234,7 @@ function openEditor(d: DayKey, block: Block | null) {
 function refreshAll() {
   clearRoutes();   // places may have changed, so saved road routes may be wrong now
   mapKey = '';     // redraw the map pins and route
+  cardsKey = '';   // rebuild the upcoming cards
   fillSelects();
   updateMetrics();
   buildGrid();
@@ -276,7 +315,7 @@ for (const d of DK) {
 }
 {
   const nb = document.createElement('button');
-  nb.textContent = 'Now in Tashkent'; nb.className = 'now'; nb.onclick = goNow;
+  nb.textContent = 'Now'; nb.className = 'now'; nb.onclick = snapToNow;
   $('days').appendChild(nb);
 }
 
@@ -387,6 +426,11 @@ function render() {
   $('prog').style.width = Math.round((el / dur) * 100) + '%';
   $('next').textContent = (r.nd ? r.nd + ' ' : '') + r.nx[0] + ' · ' + r.nx[3];
 
+  // Upcoming cards: rebuilt only when the current block changes, so a swipe isn't interrupted by the clock
+  const ck = `${day}|${r.a}`;
+  if (ck !== cardsKey) { cardsKey = ck; buildCards(); }
+  if (cardIdx > 0) return; // the map is showing a card you swiped to; leave it alone
+
   // Map: current trip if driving; else current place (+ preview of the next trip if one follows)
   let trip: [PlaceKey, PlaceKey] | null = null;
   if (driving) trip = [from, to];
@@ -409,6 +453,118 @@ function render() {
   }
 }
 
+// ---------- Carousel: what is coming next ----------
+interface Up { d: DayKey; b: Block; a: number; startsIn: number }
+let ups: Up[] = [];
+
+/** The blocks after the current one: the rest of today, then the next day, at most 12. */
+function upcoming(): Up[] {
+  const out: Up[] = [];
+  const di = DK.indexOf(day);
+  for (let off = 0; off < 2 && out.length < 12; off++) {
+    const d = DK[(di + off) % 7];
+    for (const b of D[d]) {
+      const a = m(b[0]);
+      const startsIn = a + off * 1440 - T;
+      if (startsIn <= 0) continue;
+      out.push({ d, b, a, startsIn });
+      if (out.length >= 12) break;
+    }
+  }
+  return out;
+}
+
+const dur2 = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ' ' + p2(min % 60) + ' min' : ''}` : `${min} min`);
+const escH = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+
+function placeText(b: Block): string {
+  if (b[2] === 't') { const [f, t] = split(b[4]); return `🚗 ${places[f].name} → ${places[t].name}`; }
+  const p = places[b[4] as PlaceKey];
+  return '📍 ' + (b[2] === 'f' && b[4] === 'H' ? 'Home, or anywhere you like' : `${p.name}${p.address ? ', ' + p.address : ''}`);
+}
+
+function buildCards() {
+  const box = $('cards');
+  box.querySelectorAll('.upcard').forEach(c => c.remove());
+  ups = upcoming();
+  const today = day;
+  for (const u of ups) {
+    const k = cat(u.b[2]);
+    const dayLabel = u.d === today ? 'Today' : (DK[(DK.indexOf(today) + 1) % 7] === u.d ? 'Tomorrow' : u.d);
+    const el = document.createElement('div');
+    el.className = 'card upcard';
+    el.innerHTML = `
+      <div class="top"><span class="badge" style="background:${k.bg};color:${k.fg}">${escH(k.name)}</span><span class="uday">${dayLabel} · ${u.b[0]}</span></div>
+      <p class="uact">${escH(u.b[3])}</p>
+      <p class="uwhere">${escH(placeText(u.b))}</p>
+      <p class="ustart">in ${dur2(u.startsIn)}</p>
+      <p class="urng k">${u.b[0]}–${u.b[1]} · ${dur2(m(u.b[1]) - u.a)}</p>`;
+    box.appendChild(el);
+  }
+  // Dots
+  const dots = $('dots');
+  dots.innerHTML = '';
+  for (let i = 0; i <= ups.length; i++) {
+    const d = document.createElement('button');
+    d.setAttribute('aria-label', i === 0 ? 'Now' : `Upcoming ${i}`);
+    d.onclick = () => showCard(i);
+    dots.appendChild(d);
+  }
+  showCard(0, false);
+}
+
+/** Scroll the carousel to card i (0 = now). */
+function showCard(i: number, smooth = true) {
+  const box = $('cards');
+  const card = box.children[i] as HTMLElement | undefined;
+  if (!card) return;
+  scrollLockUntil = performance.now() + (smooth ? 700 : 100); // ignore the scroll events this causes
+  box.scrollTo({ left: card.offsetLeft - box.offsetLeft, behavior: smooth ? 'smooth' : 'auto' });
+  setCardIdx(i);
+}
+let scrollLockUntil = 0;
+
+function setCardIdx(i: number) {
+  if (i === cardIdx && $('dots').querySelector('.on')) return;
+  cardIdx = i;
+  $('dots').querySelectorAll('button').forEach((d, j) => d.classList.toggle('on', j === i));
+  if (i === 0) { mapKey = ''; render(); return; } // back to the live map
+  previewOnMap(ups[i - 1]);
+}
+
+/** While a future card is in view, the map shows where that block happens. */
+function previewOnMap(u: Up | undefined) {
+  if (!u) return;
+  const b = u.b;
+  if (b[2] === 't') {
+    const [f, t] = split(b[4]);
+    void drawMap(`card:${f}-${t}`, f, [f, t], false);
+  } else {
+    void drawMap(`card:${b[4]}`, b[4] as PlaceKey, null, false);
+  }
+  $('eta').textContent = `Preview · ${u.d} ${b[0]}–${b[1]} · ${b[3]}`;
+}
+
+// Work out which card is in view after a swipe
+{
+  const box = $('cards');
+  let raf = 0, later = 0;
+  const check = () => {
+    const wait = scrollLockUntil - performance.now();
+    if (wait > 0) { clearTimeout(later); later = window.setTimeout(check, wait + 20); return; } // look again after our own scroll
+    const w = (box.children[0] as HTMLElement)?.offsetWidth || box.clientWidth;
+    const i = Math.max(0, Math.min(Math.round(box.scrollLeft / (w + 10)), ups.length));
+    if (i !== cardIdx) setCardIdx(i);
+  };
+  box.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(check); }, { passive: true });
+}
+
+/** Back to the current block and the real clock. */
+function snapToNow() {
+  goNow();
+  showCard(0, false);
+}
+
 function goNow() {
   const n = tashkentNow();
   live = true;
@@ -429,10 +585,18 @@ $('play').onclick = () => {
     render();
   }, 120);
 };
-$('backNow').onclick = goNow;
+$('backNow').onclick = snapToNow;
 
-// Keep the Now screen on the real clock until the user starts exploring
-setInterval(() => { if (live) goNow(); }, 30_000);
+// Keep the Now screen on the real clock until the user starts exploring; keep the week's red line moving
+setInterval(() => { if (live) goNow(); if (!$('view-week').hidden) placeNowLine(); }, 30_000);
+
+// Every time the app is opened again (from the home screen or another app), jump to the current time
+function onReturn() {
+  if (!$('view-now').hidden) snapToNow();
+  else { goNow(); weekToNow(); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onReturn(); });
+window.addEventListener('pageshow', e => { if ((e as PageTransitionEvent).persisted) onReturn(); });
 
 goNow();
 setTimeout(() => map.invalidateSize(), 0);

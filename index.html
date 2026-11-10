@@ -57,16 +57,22 @@
 <!-- NOW -->
 <section id="view-now">
   <div class="two">
-    <div class="card nowcard">
-      <div class="top"><span id="badge">–</span><span id="when">–</span></div>
-      <p id="act">–</p>
-      <p id="where">–</p>
-      <p id="left">–</p>
-      <p id="rng" class="k">–</p>
-      <div class="bar"><div id="prog"></div></div>
-      <p class="k">Next up</p>
-      <p id="next">–</p>
-      <button id="backNow" hidden>← Back to now</button>
+    <!-- Swipe left to see what comes next; it snaps back to "now" whenever the app is opened -->
+    <div class="carousel">
+      <div class="cards" id="cards" aria-label="Now and upcoming blocks">
+        <div class="card nowcard">
+          <div class="top"><span id="badge" class="badge">–</span><span id="when">–</span></div>
+          <p id="act">–</p>
+          <p id="where">–</p>
+          <p id="left">–</p>
+          <p id="rng" class="k">–</p>
+          <div class="bar"><div id="prog"></div></div>
+          <p class="k">Next up <span class="swipe-hint">· swipe for more ›</span></p>
+          <p id="next">–</p>
+          <button id="backNow" hidden>← Back to now</button>
+        </div>
+      </div>
+      <div class="dots" id="dots"></div>
     </div>
     <div class="card mapcard">
       <div id="map" role="img" aria-label="Map of my current route"></div>

@@ -73,6 +73,27 @@ button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 button.primary:hover{background:var(--accent);filter:brightness(1.1)}
 @media (prefers-color-scheme:dark){button.primary{color:#0b2a4a}}
 
+/* Now screen carousel: current block first, then what's coming */
+.carousel{min-width:0;display:flex;flex-direction:column}
+.cards{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain;flex:1}
+.cards::-webkit-scrollbar{display:none}
+.cards>.card{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always}
+.badge{font-size:12px;padding:3px 10px;border-radius:8px;border:.5px solid var(--border)}
+.upcard{display:flex;flex-direction:column}
+.upcard .uact{font-size:22px;line-height:1.25;font-weight:500;margin:14px 0 4px}
+.upcard .uwhere{font-size:14px;color:var(--muted);margin:0 0 18px}
+.upcard .ustart{font-size:30px;font-weight:500;margin:0;line-height:1.1}
+.upcard .urng{margin:2px 0 0}
+.upcard .uday{font-size:13px;color:var(--muted)}
+.swipe-hint{color:var(--muted)}
+.dots{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:8px}
+.dots button{width:8px;height:8px;min-height:0;padding:0;border-radius:4px;border:0;background:var(--strong);transition:width .15s}
+.dots button.on{background:var(--accent);width:18px}
+
+/* Week grid: red line at the current time */
+.nowline{position:absolute;left:0;right:0;height:0;border-top:2px solid #e5484d;z-index:3;pointer-events:none}
+.nowline::before{content:'';position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:#e5484d}
+
 /* Welcome / empty start */
 #welcome{display:none}
 .empty #welcome{display:block}
