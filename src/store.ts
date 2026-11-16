@@ -7,8 +7,21 @@ type Places = Record<PlaceKey, Place>;
 
 export const DK = Object.keys(days) as DayKey[];
 const PK = Object.keys(places) as PlaceKey[];
-const KEY = 'schedule.v2';
-const OLD_KEY = 'schedule.days.v1'; // earlier versions saved only the days
+export const LOCAL_KEY = 'schedule.v2'; // device-only data (no account); also where older versions saved
+const OLD_KEY = 'schedule.days.v1';    // even older versions saved only the days
+let KEY = LOCAL_KEY;                    // signed in: 'schedule.v2:<user id>', a per-account copy kept for offline use
+
+/** Saved schedule with the time it was last changed, as stored and as sent to the cloud. */
+export interface Snapshot { version: 2; timezone: string; places: Places; days: Days; updatedAt: number }
+
+let onSaved: ((s: Snapshot) => void) | null = null;
+let onReset: (() => Promise<void>) | null = null;
+/** Which local key to use, and what to do after every save / reset (the cloud sync hooks in here). */
+export function useStorage(key: string, hooks: { saved?: (s: Snapshot) => void; reset?: () => Promise<void> } = {}) {
+  KEY = key;
+  onSaved = hooks.saved ?? null;
+  onReset = hooks.reset ?? null;
+}
 const defaults = { days: structuredClone(days) as Days, places: structuredClone(places) as Places, timezone: settings.timezone };
 
 /** Returns a valid IANA time zone name such as "Asia/Tashkent"; throws with a readable message otherwise. */
@@ -76,7 +89,36 @@ function apply(d: Days, p: Places, tz: string = settings.timezone) {
   settings.timezone = tz;
 }
 
-const save = () => localStorage.setItem(KEY, JSON.stringify({ version: 2, timezone: settings.timezone, places, days }));
+export const snapshot = (updatedAt = Date.now()): Snapshot =>
+  ({ version: 2, timezone: settings.timezone, places, days, updatedAt });
+
+function save() {
+  const s = snapshot();
+  localStorage.setItem(KEY, JSON.stringify(s));
+  onSaved?.(s);
+}
+
+/** When the saved copy on this device was last changed (0 = nothing saved). */
+export function savedAt(key = KEY): number {
+  try { return Number((JSON.parse(localStorage.getItem(key) ?? 'null') as { updatedAt?: number } | null)?.updatedAt) || 0; }
+  catch { return 0; }
+}
+
+/**
+ * Apply a schedule that came from somewhere else (the cloud, or this device's old storage) and save it here,
+ * WITHOUT triggering the sync hook. Returns an error message, or null on success.
+ */
+export function applyFrom(data: unknown, updatedAt: number): string | null {
+  try {
+    const j = data as { days?: unknown; places?: unknown; timezone?: unknown };
+    const d = validateDays(j?.days), p = validatePlaces(j?.places);
+    if (typeof d === 'string') return d;
+    if (typeof p === 'string') return p;
+    apply(d, p, j.timezone === undefined ? defaults.timezone : validateTz(j.timezone));
+    localStorage.setItem(KEY, JSON.stringify(snapshot(updatedAt)));
+    return null;
+  } catch (e) { return e instanceof Error ? e.message : 'Invalid schedule.'; }
+}
 
 /** Apply saved data, if any. Returns true when your own data was loaded. */
 export function load(): boolean {
@@ -89,7 +131,7 @@ export function load(): boolean {
       apply(d, p, j.timezone === undefined ? defaults.timezone : validateTz(j.timezone));
       return true;
     }
-    const old = localStorage.getItem(OLD_KEY);
+    const old = KEY === LOCAL_KEY ? localStorage.getItem(OLD_KEY) : null;
     if (old) {
       const d = validateDays(JSON.parse(old));
       if (typeof d === 'string') return false;
@@ -100,13 +142,14 @@ export function load(): boolean {
   } catch { return false; }
 }
 
-export const isCustom = () => localStorage.getItem(KEY) !== null || localStorage.getItem(OLD_KEY) !== null;
+export const isCustom = () => localStorage.getItem(KEY) !== null || (KEY === LOCAL_KEY && localStorage.getItem(OLD_KEY) !== null);
 
-/** Remove everything saved on this device; the app goes back to its empty start. */
-export function reset() {
+/** Remove the schedule (on this device, and from the account when signed in); the app goes back to its empty start. */
+export async function reset() {
   localStorage.removeItem(KEY);
-  localStorage.removeItem(OLD_KEY);
+  if (KEY === LOCAL_KEY) localStorage.removeItem(OLD_KEY);
   apply(defaults.days, defaults.places, defaults.timezone);
+  await onReset?.();
 }
 
 export const exportJson = () => JSON.stringify({ version: 2, timezone: settings.timezone, places, days }, null, 1);

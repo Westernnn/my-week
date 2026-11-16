@@ -25,8 +25,30 @@
   </nav>
 </header>
 
+<!-- SIGN IN: shown when not signed in (and not using the app without an account) -->
+<section id="auth">
+  <div class="card">
+    <h2 id="aTitle">Sign in</h2>
+    <p class="k" id="aIntro">Sign in to keep your schedule in sync on all your devices.</p>
+    <form id="aForm" novalidate>
+      <label id="aEmailRow">Email <input type="email" id="aEmail" autocomplete="username" autocapitalize="off" inputmode="email"></label>
+      <label id="aPassRow">Password <input type="password" id="aPass" autocomplete="current-password" minlength="6"></label>
+      <p id="aMsg" role="alert"></p>
+      <div class="row">
+        <button class="primary" type="submit" id="aSubmit">Sign in</button>
+        <button type="button" id="aSwitch">Create an account</button>
+      </div>
+      <div class="row links">
+        <button type="button" class="link" id="aForgot">Forgot password?</button>
+        <button type="button" class="link" id="aLocal">Use without an account</button>
+      </div>
+    </form>
+  </div>
+</section>
+
 <!-- WELCOME: shown while no schedule is saved on this device -->
 <section id="welcome">
+  <p class="k account-line" id="wAccount"></p>
   <div class="card">
     <h2>Add your schedule</h2>
     <p class="k">This app starts empty. Paste your week in the format below and it builds your Now screen, map and week view. Everything stays on this device.</p>
@@ -114,6 +136,11 @@
     <button id="resetBtn">Reset</button>
   </div>
   <p id="storeNote" class="k"></p>
+  <div class="account card">
+    <p id="acctText">–</p>
+    <p id="syncText" class="k">–</p>
+    <div class="row"><button id="acctBtn">Sign out</button></div>
+  </div>
 </section>
 
 <dialog id="pasteDlg">

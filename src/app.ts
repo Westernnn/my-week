@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import { places, categories, days as D, settings, type Block, type CatKey, type DayKey, type PlaceKey } from './schedule';
 import { getRoute, pointAt, clearRoutes, type Route } from './route';
 import { paint, reset, exportJson, importJson } from './store';
+import { account, syncState, signOut, flushNow, type SyncState } from './cloud';
 
 type Cat = CatKey | 'z';
 type AnyBlock = [start: string, end: string, cat: Cat, label: string, loc: string];
@@ -244,7 +245,7 @@ function refreshAll() {
 }
 
 function updateStoreNote() {
-  $('storeNote').textContent = 'Your schedule is saved on this device only. Export makes a backup file.';
+  $('storeNote').textContent = 'Export makes a backup file of your schedule.';
 }
 
 $('edForm').onsubmit = ev => {
@@ -299,11 +300,50 @@ $<HTMLInputElement>('importFile').onchange = async e => {
   refreshAll();
 };
 $('resetBtn').onclick = () => {
-  if (!confirm('Remove your schedule and places from this device? Export first if you want a copy.')) return;
-  reset();
-  location.reload(); // back to the empty start screen
+  const where = account().mode === 'cloud' ? 'from your account (on all your devices)' : 'from this device';
+  if (!confirm(`Remove your schedule and places ${where}? Export first if you want a copy.`)) return;
+  void reset().then(() => location.reload()); // back to the empty start screen
 };
 updateStoreNote();
+
+// ---------- Account and sync ----------
+function updateAccount() {
+  const a = account();
+  const btn = $('acctBtn');
+  if (a.mode === 'cloud') {
+    $('acctText').textContent = `Signed in as ${a.email}`;
+    btn.textContent = 'Sign out';
+    btn.onclick = async () => {
+      if (!confirm('Sign out? Your schedule stays in your account, and this device forgets it until you sign in again.')) return;
+      await signOut();
+      location.reload();
+    };
+  } else {
+    $('acctText').textContent = 'Not signed in';
+    btn.textContent = 'Sign in to sync';
+    btn.onclick = async () => {
+      await signOut(); // leaves "without an account" mode; the schedule on this device moves into the account on sign-in
+      location.reload();
+    };
+  }
+  updateSync(syncState());
+}
+function updateSync(s: SyncState) {
+  const text: Record<SyncState, string> = {
+    synced: '✓ Synced with your account',
+    saving: 'Saving to your account…',
+    offline: 'Offline: changes are saved on this device and will sync when you are back online',
+    error: 'Could not reach your account; will try again',
+    local: 'Saved on this device only. Sign in to use it on your other devices too.',
+  };
+  $('syncText').textContent = text[s];
+}
+window.addEventListener('sync-status', e => updateSync((e as CustomEvent<SyncState>).detail));
+// A newer version arrived from another device
+window.addEventListener('schedule-changed', () => refreshAll());
+// Don't lose a change made right before the app is closed
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void flushNow(); });
+updateAccount();
 
 // ---------- "Check another time" controls ----------
 function scrub() { live = false; }

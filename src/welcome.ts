@@ -1,6 +1,7 @@
 // Start screen shown while no schedule is saved on this device: explains the format and takes the text.
 import { importJson } from './store';
 import { AI_PROMPT, TEMPLATE } from './format';
+import { flushNow } from './cloud';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -28,13 +29,14 @@ export function showWelcome() {
     text.focus();
   };
 
-  const add = (value: string) => {
+  const add = async (value: string) => {
     if (!value.trim()) { err.textContent = 'Paste your schedule text first.'; return; }
     const e = importJson(value);
     if (e) { err.textContent = e; return; }
+    await flushNow();  // signed in: save it to the account before restarting
     location.reload(); // the schedule is saved; start the app
   };
-  $('wAdd').onclick = () => add(text.value);
+  $('wAdd').onclick = () => void add(text.value);
 
   $('wFile').onclick = () => $('wFileInput').click();
   $<HTMLInputElement>('wFileInput').onchange = async ev => {
@@ -44,6 +46,6 @@ export function showWelcome() {
     if (!f) return;
     const value = await f.text();
     text.value = value;
-    add(value);
+    void add(value);
   };
 }
