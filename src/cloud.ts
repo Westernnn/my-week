@@ -210,6 +210,7 @@ export async function signOut() {
 function friendly(msg: string): string {
   if (/invalid login credentials/i.test(msg)) return 'Wrong email or password.';
   if (/email not confirmed/i.test(msg)) return 'This account was never confirmed. Ask the app owner to turn off "Confirm email" in Supabase.';
+  if (/signups? (are )?not allowed|signup.*disabled/i.test(msg)) return 'New accounts are closed. Ask the app owner if you need one.';
   if (/already registered|already exists/i.test(msg)) return 'An account with this email already exists. Sign in instead.';
   if (/password should be at least/i.test(msg)) return 'The password must be at least 6 characters.';
   if (/should be different from the old/i.test(msg)) return 'The new password is the same as the old one.';
