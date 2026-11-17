@@ -38,8 +38,8 @@
         <button class="primary" type="submit" id="aSubmit">Sign in</button>
         <button type="button" id="aSwitch">Create an account</button>
       </div>
+      <p class="k" id="aForgot">Forgot your password? Ask the app owner to reset it.</p>
       <div class="row links">
-        <button type="button" class="link" id="aForgot">Forgot password?</button>
         <button type="button" class="link" id="aLocal">Use without an account</button>
       </div>
     </form>
@@ -139,7 +139,7 @@
   <div class="account card">
     <p id="acctText">–</p>
     <p id="syncText" class="k">–</p>
-    <div class="row"><button id="acctBtn">Sign out</button></div>
+    <div class="row"><button id="acctBtn">Sign out</button><button id="pwBtn" hidden>Change password</button></div>
   </div>
 </section>
 
@@ -154,6 +154,21 @@
       <span class="sp"></span>
       <button type="button" id="pasteCancel">Cancel</button>
       <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pwDlg">
+  <form id="pwForm" novalidate>
+    <h3>Change password</h3>
+    <input type="email" id="pwUser" autocomplete="username" hidden>
+    <label>New password <input type="password" id="pwNew" autocomplete="new-password" minlength="6"></label>
+    <label>Type it again <input type="password" id="pwAgain" autocomplete="new-password" minlength="6"></label>
+    <p id="pwErr" role="alert"></p>
+    <div class="btns">
+      <span class="sp"></span>
+      <button type="button" id="pwCancel">Cancel</button>
+      <button type="submit" id="pwSave" class="primary">Save</button>
     </div>
   </form>
 </dialog>

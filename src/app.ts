@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import { places, categories, days as D, settings, type Block, type CatKey, type DayKey, type PlaceKey } from './schedule';
 import { getRoute, pointAt, clearRoutes, type Route } from './route';
 import { paint, reset, exportJson, importJson } from './store';
-import { account, syncState, signOut, flushNow, type SyncState } from './cloud';
+import { account, syncState, signOut, flushNow, changePassword, type SyncState } from './cloud';
 
 type Cat = CatKey | 'z';
 type AnyBlock = [start: string, end: string, cat: Cat, label: string, loc: string];
@@ -318,7 +318,9 @@ function updateAccount() {
       await signOut();
       location.reload();
     };
+    $('pwBtn').hidden = false;
   } else {
+    $('pwBtn').hidden = true;
     $('acctText').textContent = 'Not signed in';
     btn.textContent = 'Sign in to sync';
     btn.onclick = async () => {
@@ -338,6 +340,32 @@ function updateSync(s: SyncState) {
   };
   $('syncText').textContent = text[s];
 }
+// Change password (only when signed in). A forgotten password is reset by the app owner instead.
+const pwDlg = $<HTMLDialogElement>('pwDlg');
+const pwNew = $<HTMLInputElement>('pwNew'), pwAgain = $<HTMLInputElement>('pwAgain'), pwErr = $('pwErr');
+const pwSay = (text: string, ok = false) => { pwErr.textContent = text; pwErr.classList.toggle('ok', ok); };
+$('pwBtn').onclick = () => {
+  pwNew.value = pwAgain.value = '';
+  $<HTMLInputElement>('pwUser').value = account().email; // lets the iPhone's password manager update the saved password
+  pwSay('');
+  pwDlg.showModal();
+  pwNew.focus();
+};
+$('pwCancel').onclick = () => pwDlg.close();
+$('pwForm').onsubmit = async ev => {
+  ev.preventDefault();
+  if (pwNew.value.length < 6) return pwSay('The password must be at least 6 characters.');
+  if (pwNew.value !== pwAgain.value) return pwSay('The two passwords are different. Type them again.');
+  const save = $<HTMLButtonElement>('pwSave');
+  save.disabled = true;
+  pwSay('One moment…', true);
+  const err = await changePassword(pwNew.value);
+  save.disabled = false;
+  if (err) return pwSay(err);
+  pwSay('');
+  pwDlg.close();
+  $('syncText').textContent = 'Password changed. Use the new one next time you sign in.';
+};
 window.addEventListener('sync-status', e => updateSync((e as CustomEvent<SyncState>).detail));
 // A newer version arrived from another device
 window.addEventListener('schedule-changed', () => refreshAll());

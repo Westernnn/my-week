@@ -1,8 +1,9 @@
-// Sign-in screen: sign in, create an account, reset a forgotten password, or use the app without an account.
-import { signIn, signUp, sendPasswordReset, setNewPassword, useWithoutAccount } from './cloud';
+// Sign-in screen: sign in, create an account, or use the app without an account.
+// There is no "forgot password" email: the app owner resets passwords in Supabase (see CLAUDE.md).
+import { signIn, signUp, useWithoutAccount } from './cloud';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-type View = 'signin' | 'signup' | 'forgot' | 'newpass';
+type View = 'signin' | 'signup';
 
 export function showAuth(start: View = 'signin') {
   const email = $<HTMLInputElement>('aEmail'), pass = $<HTMLInputElement>('aPass');
@@ -16,26 +17,19 @@ export function showAuth(start: View = 'signin') {
     say('');
     const copy: Record<View, [string, string, string, string]> = {
       signin: ['Sign in', 'Sign in to keep your schedule in sync on all your devices.', 'Sign in', 'Create an account'],
-      signup: ['Create an account', 'Use your email and a password (at least 6 characters).', 'Create account', 'I already have an account'],
-      forgot: ['Reset your password', 'Enter your email and we\'ll send you a link to set a new password.', 'Send link', 'Back to sign in'],
-      newpass: ['Set a new password', 'Choose a new password (at least 6 characters).', 'Save password', ''],
+      signup: ['Create an account', "Type your email and a password (at least 6 characters). You'll be signed in right away. Check your email for typos: you'll need it to sign in on other devices.", 'Create account', 'I already have an account'],
     };
     const [title, intro, btn, sw] = copy[v];
     $('aTitle').textContent = title;
     $('aIntro').textContent = intro;
     submit.textContent = btn;
     $('aSwitch').textContent = sw;
-    $('aSwitch').hidden = !sw;
-    $('aEmailRow').hidden = v === 'newpass';
-    $('aPassRow').hidden = v === 'forgot';
     $('aForgot').hidden = v !== 'signin';
-    $('aLocal').hidden = v === 'newpass';
     pass.autocomplete = v === 'signin' ? 'current-password' : 'new-password';
-    (v === 'newpass' ? pass : email).focus();
+    email.focus();
   }
 
   $('aSwitch').onclick = () => show(view === 'signin' ? 'signup' : 'signin');
-  $('aForgot').onclick = () => show('forgot');
   $('aLocal').onclick = () => {
     if (!confirm('Use the app without an account? Your schedule will only be saved on this device. You can sign in later from the Week tab.')) return;
     useWithoutAccount();
@@ -45,8 +39,8 @@ export function showAuth(start: View = 'signin') {
   $('aForm').onsubmit = async ev => {
     ev.preventDefault();
     const e = email.value.trim(), p = pass.value;
-    if (view !== 'newpass' && !/^\S+@\S+\.\S+$/.test(e)) return say('Enter a valid email address.');
-    if (view !== 'forgot' && p.length < 6) return say('The password must be at least 6 characters.');
+    if (!/^\S+@\S+\.\S+$/.test(e)) return say('Enter a valid email address.');
+    if (p.length < 6) return say('The password must be at least 6 characters.');
 
     submit.disabled = true;
     say('One moment…', true);
@@ -55,26 +49,10 @@ export function showAuth(start: View = 'signin') {
         const err = await signIn(e, p);
         if (err) return say(err);
         location.reload();
-      } else if (view === 'signup') {
-        const r = await signUp(e, p);
-        if (r === null) return location.reload(); // signed in straight away
-        if (r === 'confirm') {
-          show('signin');
-          email.value = e;
-          return say(`Almost done: we sent a confirmation link to ${e}. Open it, then sign in here. (Check the spam folder too.)`, true);
-        }
-        say(r);
-      } else if (view === 'forgot') {
-        const err = await sendPasswordReset(e);
-        if (err) return say(err);
-        show('signin');
-        email.value = e;
-        say(`If ${e} has an account, a link to reset the password is on its way.`, true);
       } else {
-        const err = await setNewPassword(p);
+        const err = await signUp(e, p);
         if (err) return say(err);
-        history.replaceState(null, '', location.pathname);
-        location.reload();
+        location.reload(); // signed in straight away
       }
     } finally {
       submit.disabled = false;

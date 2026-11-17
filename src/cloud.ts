@@ -13,13 +13,10 @@ import { useStorage, applyFrom, savedAt, LOCAL_KEY, snapshot, type Snapshot } fr
 const SUPABASE_URL = 'https://dqrlmbmmzulbxmktkzpj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__spGDhP-GhcjiReA_jDJLg_A_XaOxuF';
 
-// Read before the client consumes it: a password-reset link brings the user back with "type=recovery".
-export const recoveringPassword = /type=recovery/.test(location.hash);
-
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  // "implicit" so that email links work even when opened in a different browser than the one that asked for them
-  // (on iPhone, links open in Safari, not in the home-screen app).
-  auth: { flowType: 'implicit', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  // The app uses no email links: sign-up signs in right away, and a forgotten password is reset by the app owner
+  // in Supabase. So there is nothing to read from the address bar.
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 });
 
 const MODE_KEY = 'auth.mode'; // 'local' = the user chose to use the app without an account
@@ -69,6 +66,7 @@ async function flush(): Promise<void> {
     data: s,
     updated_at: new Date(s.updatedAt).toISOString(),
   });
+  if (mode !== 'cloud') return; // signed out while waiting
   if (error) { setState(navigator.onLine ? 'error' : 'offline'); return; }
   if (!pending) { localStorage.removeItem(dirtyKey()); setState('synced'); }
 }
@@ -88,6 +86,7 @@ export async function syncNow(): Promise<boolean> {
   if (mode !== 'cloud') return false;
   if (localStorage.getItem(dirtyKey())) { await flush(); return false; }
   const r = await pull();
+  if (mode !== 'cloud') return false; // signed out while waiting: don't write this account's copy back
   if (r === 'error') { setState(navigator.onLine ? 'error' : 'offline'); return false; }
   setState('synced');
   if (!r) {
@@ -162,26 +161,26 @@ async function syncAndAnnounce() {
 }
 
 // ---------- Sign in / out ----------
-const here = () => location.origin + location.pathname;
 
 export async function signIn(email: string, password: string): Promise<string | null> {
   const { error } = await sb.auth.signInWithPassword({ email, password });
   return error ? friendly(error.message) : null;
 }
 
-/** Returns null when signed in right away, 'confirm' when an email confirmation is needed, or an error message. */
-export async function signUp(email: string, password: string): Promise<string | 'confirm' | null> {
-  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: here() } });
+/**
+ * Create an account and sign in straight away. Returns null on success, or an error message.
+ * Needs "Confirm email" turned OFF in Supabase (Authentication → Sign In / Providers → Email);
+ * otherwise Supabase creates the account without signing in and wants an email link, which this app doesn't use.
+ */
+export async function signUp(email: string, password: string): Promise<string | null> {
+  const { data, error } = await sb.auth.signUp({ email, password });
   if (error) return friendly(error.message);
-  return data.session ? null : 'confirm';
+  if (!data.session) return `The account was created, but the app's settings still ask for an email confirmation, so you can't sign in yet. Ask the app owner to turn off "Confirm email" in Supabase.`;
+  return null;
 }
 
-export async function sendPasswordReset(email: string): Promise<string | null> {
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: here() });
-  return error ? friendly(error.message) : null;
-}
-
-export async function setNewPassword(password: string): Promise<string | null> {
+/** Change the password of the signed-in account. Returns null on success, or an error message. */
+export async function changePassword(password: string): Promise<string | null> {
   const { error } = await sb.auth.updateUser({ password });
   return error ? friendly(error.message) : null;
 }
@@ -190,20 +189,30 @@ export function useWithoutAccount() { localStorage.setItem(MODE_KEY, 'local'); }
 
 /** Sign out and remove this account's copy from the device (it stays in the cloud). */
 export async function signOut() {
-  if (mode === 'cloud') {
+  const wasCloud = mode === 'cloud';
+  if (wasCloud) {
+    clearTimeout(pushTimer);
     if (localStorage.getItem(dirtyKey())) await flush(); // don't lose unsent changes
+  }
+  // From here on, a sync that is still running stops before it can save this account's copy again
+  mode = 'signedOut';
+  const forget = () => {
+    if (!wasCloud) return;
     localStorage.removeItem(cacheKey(userId));
     localStorage.removeItem(dirtyKey());
-  }
+  };
+  forget();
   localStorage.removeItem(MODE_KEY);
   await sb.auth.signOut();
+  forget(); // once more, in case something wrote it back during the sign-out request
 }
 
 function friendly(msg: string): string {
   if (/invalid login credentials/i.test(msg)) return 'Wrong email or password.';
-  if (/email not confirmed/i.test(msg)) return 'Please confirm your email first: open the link we sent you, then sign in.';
+  if (/email not confirmed/i.test(msg)) return 'This account was never confirmed. Ask the app owner to turn off "Confirm email" in Supabase.';
   if (/already registered|already exists/i.test(msg)) return 'An account with this email already exists. Sign in instead.';
   if (/password should be at least/i.test(msg)) return 'The password must be at least 6 characters.';
+  if (/should be different from the old/i.test(msg)) return 'The new password is the same as the old one.';
   if (/rate limit|too many/i.test(msg)) return 'Too many attempts. Please wait a few minutes and try again.';
   if (/failed to fetch|network/i.test(msg)) return 'No connection. Check your internet and try again.';
   return msg;

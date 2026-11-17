@@ -66,8 +66,10 @@ dialog input,dialog select,dialog textarea{display:block;width:100%;margin-top:4
 dialog .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 dialog .btns{display:flex;gap:8px;align-items:center;margin-top:6px}
 dialog .sp{flex:1}
-#edErr,#pasteErr{color:#c0392b;font-size:13px;margin:0 0 8px;min-height:0}
-#edErr:empty,#pasteErr:empty{display:none}
+#edErr,#pasteErr,#pwErr{color:#c0392b;font-size:13px;margin:0 0 8px;min-height:0}
+#edErr:empty,#pasteErr:empty,#pwErr:empty{display:none}
+#pwErr.ok{color:var(--muted)}
+#aForgot{margin:14px 0 0;font-size:13px}
 dialog textarea{font-family:ui-monospace,Consolas,monospace;font-size:13px;resize:vertical}
 button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 button.primary:hover{background:var(--accent);filter:brightness(1.1)}

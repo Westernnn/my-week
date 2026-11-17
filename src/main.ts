@@ -1,18 +1,18 @@
 import './style.css';
 import { load } from './store';
-import { startCloud, recoveringPassword, firstLoadFailed, account, signOut } from './cloud';
+import { startCloud, firstLoadFailed, account, signOut } from './cloud';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
 async function boot() {
   const mode = await startCloud();
 
-  // Not signed in (and not using the app without an account), or back from a "reset password" link
-  if (mode === 'signedOut' || (mode === 'cloud' && recoveringPassword)) {
+  // Not signed in (and not using the app without an account)
+  if (mode === 'signedOut') {
     document.body.classList.add('signin');
     $('sub').textContent = 'Sign in to continue';
     const m = await import('./auth');
-    m.showAuth(mode === 'cloud' ? 'newpass' : 'signin');
+    m.showAuth();
     return;
   }
 
