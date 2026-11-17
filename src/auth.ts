@@ -1,6 +1,6 @@
 // Sign-in screen: sign in, create an account, or use the app without an account.
 // There is no "forgot password" email: the app owner resets passwords in Supabase (see CLAUDE.md).
-import { signIn, signUp, useWithoutAccount } from './cloud';
+import { signIn, signUp, signupsClosed, useWithoutAccount } from './cloud';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 type View = 'signin' | 'signup';
@@ -9,6 +9,7 @@ export function showAuth(start: View = 'signin') {
   const email = $<HTMLInputElement>('aEmail'), pass = $<HTMLInputElement>('aPass');
   const msg = $('aMsg'), submit = $<HTMLButtonElement>('aSubmit');
   let view: View = start;
+  let closed = false; // new sign-ups switched off in Supabase
 
   const say = (text: string, ok = false) => { msg.textContent = text; msg.classList.toggle('ok', ok); };
 
@@ -26,8 +27,17 @@ export function showAuth(start: View = 'signin') {
     $('aSwitch').textContent = sw;
     $('aForgot').hidden = v !== 'signin';
     pass.autocomplete = v === 'signin' ? 'current-password' : 'new-password';
-    email.focus();
+    // Sign-ups closed: replace the form with a big notice
+    const shut = v === 'signup' && closed;
+    $('aClosed').hidden = !shut;
+    $('aIntro').hidden = $('aEmailRow').hidden = $('aPassRow').hidden = submit.hidden = shut;
+    if (!shut) email.focus();
   }
+
+  void signupsClosed().then(c => {
+    closed = c;
+    if (view === 'signup') show('signup');
+  });
 
   $('aSwitch').onclick = () => show(view === 'signin' ? 'signup' : 'signin');
   $('aLocal').onclick = () => {
@@ -38,6 +48,7 @@ export function showAuth(start: View = 'signin') {
 
   $('aForm').onsubmit = async ev => {
     ev.preventDefault();
+    if (view === 'signup' && closed) return;
     const e = email.value.trim(), p = pass.value;
     if (!/^\S+@\S+\.\S+$/.test(e)) return say('Enter a valid email address.');
     if (p.length < 6) return say('The password must be at least 6 characters.');

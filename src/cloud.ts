@@ -185,6 +185,17 @@ export async function changePassword(password: string): Promise<string | null> {
   return error ? friendly(error.message) : null;
 }
 
+/**
+ * True when the app owner has switched off new sign-ups in Supabase. Read from Supabase's public settings,
+ * so the sign-up form comes back by itself if sign-ups are switched on again.
+ */
+export async function signupsClosed(): Promise<boolean> {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } });
+    return r.ok && (await r.json() as { disable_signup?: boolean }).disable_signup === true;
+  } catch { return false; } // offline: show the form; Supabase still refuses if sign-ups are closed
+}
+
 export function useWithoutAccount() { localStorage.setItem(MODE_KEY, 'local'); }
 
 /** Sign out and remove this account's copy from the device (it stays in the cloud). */

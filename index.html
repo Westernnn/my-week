@@ -31,6 +31,11 @@
     <h2 id="aTitle">Sign in</h2>
     <p class="k" id="aIntro">Sign in to keep your schedule in sync on all your devices.</p>
     <form id="aForm" novalidate>
+      <div id="aClosed" class="closed" role="status" hidden>
+        <p class="big">New accounts are closed</p>
+        <p>This app is private, so you can't sign up right now.</p>
+        <p>Already have an account? Tap <b>I already have an account</b>.<br>Need one? Ask the app owner.</p>
+      </div>
       <label id="aEmailRow">Email <input type="email" id="aEmail" autocomplete="username" autocapitalize="off" inputmode="email"></label>
       <label id="aPassRow">Password <input type="password" id="aPass" autocomplete="current-password" minlength="6"></label>
       <p id="aMsg" role="alert"></p>

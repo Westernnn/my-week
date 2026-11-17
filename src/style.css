@@ -108,6 +108,9 @@ button.primary:hover{background:var(--accent);filter:brightness(1.1)}
 #auth .links{justify-content:space-between;margin-top:6px}
 button.link{border:0;background:none;padding:6px 0;color:var(--accent);min-height:0}
 button.link:hover{background:none;text-decoration:underline}
+.closed{margin:10px 0 4px;padding:18px 16px;border:2px solid #c0392b;border-radius:12px;text-align:center}
+.closed .big{margin:0 0 10px;font-size:26px;line-height:1.2;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#c0392b}
+.closed p{margin:6px 0 0;font-size:15px}
 #aMsg{font-size:13px;margin:12px 0 0;color:#c0392b}
 #aMsg.ok{color:var(--muted)}
 #aMsg:empty{display:none}
